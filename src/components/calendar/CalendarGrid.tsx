@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { DragDropContext, Droppable, DropResult } from 'react-beautiful-dnd';
 import { CalendarDay } from './CalendarDay';
@@ -94,7 +93,7 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
                 <div
                   ref={provided.innerRef}
                   {...provided.droppableProps}
-                  className={snapshot.isDragOver ? 'bg-blue-50' : ''}
+                  className={snapshot.isDraggingOver ? 'bg-blue-50' : ''}
                 >
                   <CalendarDay
                     day={day}
