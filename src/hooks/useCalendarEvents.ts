@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Event, EventFormData, RecurrencePattern } from '@/types/calendar';
 import { 
@@ -105,6 +104,39 @@ export const useCalendarEvents = () => {
     });
   };
 
+  const rescheduleEvent = (eventId: string, newDate: string): { success: boolean; message?: string } => {
+    const eventToReschedule = events.find(e => e.id === eventId);
+    if (!eventToReschedule) {
+      return { success: false, message: 'Event not found' };
+    }
+
+    // Check for conflicts
+    const conflictingEvents = events.filter(e => 
+      e.id !== eventId && 
+      e.startDate === newDate &&
+      e.startTime === eventToReschedule.startTime
+    );
+
+    if (conflictingEvents.length > 0) {
+      // Allow the move but warn about conflicts
+      console.warn(`Event moved to ${newDate} but conflicts with: ${conflictingEvents.map(e => e.title).join(', ')}`);
+    }
+
+    // Update the event's date
+    setEvents(prev => prev.map(event => 
+      event.id === eventId 
+        ? { ...event, startDate: newDate, endDate: newDate }
+        : event
+    ));
+
+    return { 
+      success: true, 
+      message: conflictingEvents.length > 0 
+        ? `Event moved but conflicts with: ${conflictingEvents.map(e => e.title).join(', ')}` 
+        : undefined 
+    };
+  };
+
   const getEventsForDate = (date: Date): Event[] => {
     const dateString = format(date, 'yyyy-MM-dd');
     return events.filter(event => event.startDate === dateString);
@@ -123,6 +155,7 @@ export const useCalendarEvents = () => {
     addEvent,
     updateEvent,
     deleteEvent,
+    rescheduleEvent,
     getEventsForDate,
     getEventsForDateRange,
   };

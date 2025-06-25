@@ -7,6 +7,7 @@ import { CalendarHeader } from '@/components/calendar/CalendarHeader';
 import { useCalendarEvents } from '@/hooks/useCalendarEvents';
 import { Event, EventFormData } from '@/types/calendar';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
 
 const Calendar = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -15,11 +16,14 @@ const Calendar = () => {
   const [showEventForm, setShowEventForm] = useState(false);
   const [view, setView] = useState<'month' | 'list'>('month');
 
+  const { toast } = useToast();
+
   const {
     events,
     addEvent,
     updateEvent,
     deleteEvent,
+    rescheduleEvent,
     getEventsForDateRange
   } = useCalendarEvents();
 
@@ -62,6 +66,31 @@ const Calendar = () => {
     setSelectedDate(null);
   };
 
+  const handleEventDrop = (eventId: string, newDate: string) => {
+    const result = rescheduleEvent(eventId, newDate);
+    
+    if (result.success) {
+      if (result.message) {
+        toast({
+          title: "Event Rescheduled",
+          description: result.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Event Rescheduled",
+          description: "Event has been moved successfully.",
+        });
+      }
+    } else {
+      toast({
+        title: "Error",
+        description: result.message || "Failed to reschedule event.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-7xl mx-auto">
@@ -79,6 +108,7 @@ const Calendar = () => {
               events={monthEvents}
               onDateClick={handleDateClick}
               onEventClick={handleEventClick}
+              onEventDrop={handleEventDrop}
             />
           ) : (
             <EventList

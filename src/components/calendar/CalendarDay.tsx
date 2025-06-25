@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { Draggable } from 'react-beautiful-dnd';
 import { CalendarDay as CalendarDayType, Event } from '@/types/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -41,18 +42,32 @@ export const CalendarDay: React.FC<CalendarDayProps> = ({
       </div>
       
       <div className="space-y-1">
-        {day.events.slice(0, 3).map((event) => (
-          <div
-            key={event.id}
-            className={cn(
-              "text-xs p-1 rounded text-white cursor-pointer hover:opacity-80 transition-opacity",
-              "truncate"
-            )}
-            style={{ backgroundColor: event.color }}
-            onClick={(e) => handleEventClick(event, e)}
+        {day.events.slice(0, 3).map((event, index) => (
+          <Draggable 
+            key={event.id} 
+            draggableId={`event-${event.id}`} 
+            index={index}
           >
-            {event.title}
-          </div>
+            {(provided, snapshot) => (
+              <div
+                ref={provided.innerRef}
+                {...provided.draggableProps}
+                {...provided.dragHandleProps}
+                className={cn(
+                  "text-xs p-1 rounded text-white cursor-grab active:cursor-grabbing hover:opacity-80 transition-opacity",
+                  "truncate",
+                  snapshot.isDragging && "shadow-lg"
+                )}
+                style={{
+                  backgroundColor: event.color,
+                  ...provided.draggableProps.style,
+                }}
+                onClick={(e) => handleEventClick(event, e)}
+              >
+                {event.title}
+              </div>
+            )}
+          </Draggable>
         ))}
         {day.events.length > 3 && (
           <div className="text-xs text-muted-foreground">
