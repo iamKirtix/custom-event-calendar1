@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Event, EventFormData, RecurrencePattern } from '@/types/calendar';
 import { 
@@ -8,7 +9,10 @@ import {
   isBefore, 
   isEqual,
   parseISO,
-  format
+  format,
+  getDay,
+  startOfWeek,
+  addWeeks as addWeeksToDate
 } from 'date-fns';
 
 const STORAGE_KEY = 'calendar-events';
@@ -35,38 +39,94 @@ export const useCalendarEvents = () => {
     const recurringEvents: Event[] = [event];
     const { type, frequency, endDate, endAfterOccurrences, daysOfWeek } = event.recurrence;
     const startDate = parseISO(event.startDate);
-    let currentDate = startDate;
     let occurrenceCount = 1;
+    const maxOccurrences = endAfterOccurrences || 50;
 
-    while (occurrenceCount < (endAfterOccurrences || 50)) {
-      switch (type) {
-        case 'daily':
-          currentDate = addDays(currentDate, frequency);
+    if (type === 'weekly' && daysOfWeek && daysOfWeek.length > 0) {
+      // Handle weekly recurring events with specific days
+      const eventDayOfWeek = getDay(startDate);
+      let weekStart = startOfWeek(startDate);
+      let currentWeek = 0;
+
+      while (occurrenceCount < maxOccurrences) {
+        // Move to next occurrence week
+        if (currentWeek > 0) {
+          weekStart = addWeeksToDate(weekStart, frequency);
+        }
+        
+        if (endDate && isAfter(weekStart, parseISO(endDate))) {
           break;
-        case 'weekly':
-          currentDate = addWeeks(currentDate, frequency);
+        }
+
+        // Generate events for selected days in this week
+        for (const dayOfWeek of daysOfWeek) {
+          const eventDate = addDays(weekStart, dayOfWeek);
+          
+          // Skip if this is the original event date (already included)
+          if (currentWeek === 0 && dayOfWeek === eventDayOfWeek) {
+            continue;
+          }
+
+          if (endDate && isAfter(eventDate, parseISO(endDate))) {
+            break;
+          }
+
+          if (occurrenceCount >= maxOccurrences) {
+            break;
+          }
+
+          const recurringEvent: Event = {
+            ...event,
+            id: `${event.id}-${occurrenceCount}`,
+            startDate: format(eventDate, 'yyyy-MM-dd'),
+            endDate: format(eventDate, 'yyyy-MM-dd'),
+            parentEventId: event.id,
+          };
+
+          recurringEvents.push(recurringEvent);
+          occurrenceCount++;
+        }
+
+        currentWeek++;
+        
+        if (endDate && isAfter(weekStart, parseISO(endDate))) {
           break;
-        case 'monthly':
-          currentDate = addMonths(currentDate, frequency);
-          break;
-        default:
-          return recurringEvents;
+        }
       }
+    } else {
+      // Handle daily and monthly recurring events
+      let currentDate = startDate;
 
-      if (endDate && isAfter(currentDate, parseISO(endDate))) {
-        break;
+      while (occurrenceCount < maxOccurrences) {
+        switch (type) {
+          case 'daily':
+            currentDate = addDays(currentDate, frequency);
+            break;
+          case 'weekly':
+            currentDate = addWeeks(currentDate, frequency);
+            break;
+          case 'monthly':
+            currentDate = addMonths(currentDate, frequency);
+            break;
+          default:
+            return recurringEvents;
+        }
+
+        if (endDate && isAfter(currentDate, parseISO(endDate))) {
+          break;
+        }
+
+        const recurringEvent: Event = {
+          ...event,
+          id: `${event.id}-${occurrenceCount}`,
+          startDate: format(currentDate, 'yyyy-MM-dd'),
+          endDate: format(currentDate, 'yyyy-MM-dd'),
+          parentEventId: event.id,
+        };
+
+        recurringEvents.push(recurringEvent);
+        occurrenceCount++;
       }
-
-      const recurringEvent: Event = {
-        ...event,
-        id: `${event.id}-${occurrenceCount}`,
-        startDate: format(currentDate, 'yyyy-MM-dd'),
-        endDate: format(currentDate, 'yyyy-MM-dd'),
-        parentEventId: event.id,
-      };
-
-      recurringEvents.push(recurringEvent);
-      occurrenceCount++;
     }
 
     return recurringEvents;
